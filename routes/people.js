@@ -26,11 +26,27 @@ router.get('/', async (req, res, next) => {
     //   - por exemplo, assim que uma pessoa é excluída, uma mensagem de
     //     sucesso pode ser mostrada
     // - error: idem para mensagem de erro
-    res.render('list-people', {
-      people,
-      success: req.flash('success'),
-      error: req.flash('error')
+    res.format({
+      html: () => {
+        if (people.length > 0) {
+          res.render('list-people', {
+					  people,
+					  success: req.flash('success'),
+					  error: req.flash('error')
+					})
+        } else {
+          throw new Error('Pessoas não encontradas.')
+        }
+      },
+      json: () => {
+        if (people.length > 0) {
+          res.json(people)
+        } else {
+          res.status(404).send({})
+        }
+      }
     })
+
 
   } catch (error) {
     console.error(error)
@@ -88,7 +104,20 @@ router.get('/new/', (req, res) => {
 //   2. Redirecionar para a rota de listagem de pessoas
 //      - Em caso de sucesso do INSERT, colocar uma mensagem feliz
 //      - Em caso de erro do INSERT, colocar mensagem vermelhinha
-
+router.post('/', async (req, res) => {
+	const newName = req.body.name
+	try{
+		if(newName){
+			const [result] = await db.execute('INSERT INTO person (id,name,alive) VALUES (NULL,?,TRUE)', [newName])
+			req.flash('success', `${newName} adicionado com sucesso.`)
+		} else {
+			req.flash('error', 'Digite um nome')
+		}
+	}catch(e) {
+		req.flash('error', "Algo deu errado. Tente novamente mais tarde.")
+	}
+	res.redirect('/people')
+})
 
 /* DELETE uma pessoa */
 // Exercício 2: IMPLEMENTAR AQUI
@@ -97,6 +126,17 @@ router.get('/new/', (req, res) => {
 //   2. Redirecionar para a rota de listagem de pessoas
 //      - Em caso de sucesso do INSERT, colocar uma mensagem feliz
 //      - Em caso de erro do INSERT, colocar mensagem vermelhinha
-
+router.delete('/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const [person] = await db.execute('SELECT * FROM person WHERE id=?', [id])
+    const name = person[0].name
+    const [result] = await db.execute('DELETE FROM person WHERE id=?', [id])
+    req.flash('success', `${name} excluído com sucesso.`)
+  }catch(e) {
+    req.flash('error', "Algo deu errado. Tente novamente mais tarde.")
+  }
+  res.redirect('/people')
+})
 
 export default router
